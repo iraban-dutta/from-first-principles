@@ -108,7 +108,7 @@ def render_page(title: str, body: str, root: str):
     page = page.replace("{{ROOT}}", root)
     page = page.replace("{{title}}", title)
     page = page.replace("{{header}}", HEADER.replace("{{ROOT}}", root))
-    page = page.replace("{{footer}}", FOOTER)
+    page = page.replace("{{footer}}", FOOTER.replace("{{ROOT}}", root))
     page = page.replace("{{content}}", body)
 
     return page

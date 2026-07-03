@@ -14,7 +14,7 @@ from utils import (
 
 ROOT_MAP = {
     "local": "",
-    "github": "/from-first-principles/",
+    "github": "/from-first-principles",
 }
 
 POSTS_DIR = ROOT / "posts"

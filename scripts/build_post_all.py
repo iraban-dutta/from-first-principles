@@ -5,7 +5,7 @@ from utils import ROOT, build_post
 
 ROOT_MAP = {
     "local": "../../",
-    "github": "/from-first-principles/",
+    "github": "/from-first-principles",
 }
 
 

@@ -1,0 +1,2049 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="UTF-8">
+
+<title>Tensor Manipulations 101</title>
+
+<link rel="stylesheet" href="/from-first-principles/styles.css">
+
+</head>
+
+<body>
+
+<header>
+
+    <div class="logo">
+        <a href="/from-first-principles/index.html">f<sup>2</sup>p</a>
+    </div>
+
+    <nav>
+        <a href="/from-first-principles/archive.html">Archive</a>
+        <a href="/from-first-principles/search.html">Search</a>
+        <a href="/from-first-principles/about.html">About</a>
+    </nav>
+
+</header>
+
+<article class="blog-post">
+
+<h1>Tensor Manipulations 101</h1>
+<p><strong>Published:</strong> 3 July 2026</p>
+<p><strong>Last Updated:</strong> 3 July 2026</p>
+<p>Tensor manipulations form the foundation of modern machine learning. Every operation in a neural network—from embedding lookups and attention mechanisms to convolutions and loss computation—ultimately boils down to selecting, reshaping, combining or broadcasting tensors.</p>
+<p>This article is a collection of the tensor manipulation patterns that I repeatedly encounter while working with NumPy and PyTorch. The emphasis is on building intuition through examples rather than memorizing APIs.</p>
+<hr />
+<details class="toc" id="table-of-contents">
+<summary>Table of Contents</summary>
+<ul>
+<li><a href="#1-tensor-indexing">1 Tensor Indexing</a>
+<ul>
+<li><a href="#1-1-the-mental-model">1.1 The Mental Model</a></li>
+<li><a href="#1-2-integer-indexing">1.2 Integer Indexing</a></li>
+<li><a href="#1-3-slice-indexing">1.3 Slice Indexing</a></li>
+<li><a href="#1-4-the-colon-operator">1.4 The Colon (`:`) Operator</a></li>
+<li><a href="#1-5-continuous-submatrix-extraction">1.5 Continuous Submatrix Extraction</a></li>
+<li><a href="#1-6-non-continuous-submatrix-extraction">1.6 Non-Continuous Submatrix Extraction</a></li>
+<li><a href="#1-7-pairwise-indexing-the-most-common-gotcha">1.7 Pairwise Indexing — The Most Common Gotcha</a></li>
+<li><a href="#1-8-shape-rules">1.8 Shape Rules</a></li>
+</ul>
+</li>
+<li><a href="#2-advanced-indexing">2 Advanced Indexing</a>
+<ul>
+<li><a href="#2-1-single-row-lookup">2.1 Single Row Lookup</a></li>
+<li><a href="#2-2-multiple-row-lookup">2.2 Multiple Row Lookup</a></li>
+<li><a href="#2-3-batched-row-lookup">2.3 Batched Row Lookup</a></li>
+<li><a href="#2-4-the-golden-rule">2.4 The Golden Rule</a></li>
+<li><a href="#2-5-why-embedding-layers-work">2.5 Why Embedding Layers Work</a></li>
+</ul>
+</li>
+<li><a href="#3-embedding-layers">3 Embedding Layers</a>
+<ul>
+<li><a href="#3-1-one-hot-encoding-matrix-multiplication">3.1 One-Hot Encoding + Matrix Multiplication</a></li>
+<li><a href="#3-2-integer-lookup-nn-embedding">3.2 Integer Lookup (`nn.Embedding`)</a></li>
+<li><a href="#3-3-why-both-methods-are-equivalent">3.3 Why Both Methods Are Equivalent</a></li>
+</ul>
+</li>
+<li><a href="#4-reshaping-tensors">4 Reshaping Tensors</a>
+<ul>
+<li><a href="#4-1-reshaping">4.1 Reshaping</a></li>
+<li><a href="#4-2-flattening">4.2 Flattening</a></li>
+<li><a href="#4-3-view-vs-reshape">4.3 `view()` vs `reshape()`</a></li>
+</ul>
+</li>
+<li><a href="#5-combining-tensors">5 Combining Tensors</a>
+<ul>
+<li><a href="#5-1-concatenate-torch-cat">5.1 `concatenate()` / `torch.cat()`</a></li>
+<li><a href="#5-2-stack-torch-stack">5.2 `stack()` / `torch.stack()`</a></li>
+<li><a href="#5-3-expand-dims-unsqueeze">5.3 `expand_dims()` / `unsqueeze()`</a></li>
+<li><a href="#5-4-squeeze">5.4 `squeeze()`</a></li>
+</ul>
+</li>
+<li><a href="#6-broadcasting">6 Broadcasting</a>
+<ul>
+<li><a href="#6-1-the-broadcasting-rules">6.1 The Broadcasting Rules</a></li>
+<li><a href="#6-2-singleton-dimensions">6.2 Singleton Dimensions</a></li>
+<li><a href="#6-3-canonical-examples">6.3 Canonical Examples</a></li>
+<li><a href="#6-4-invalid-broadcasting-examples">6.4 Invalid Broadcasting Examples</a></li>
+<li><a href="#6-5-broadcasting-in-deep-learning">6.5 Broadcasting in Deep Learning</a></li>
+</ul>
+</li>
+</ul>
+</details>
+
+<hr />
+<h1><span id="1-tensor-indexing"></span>1 Tensor Indexing</h1>
+<p>Tensor indexing is one of the most fundamental operations in scientific computing. Once you understand indexing, operations such as embedding lookups, batched inference and attention mechanisms become much easier to reason about.</p>
+<p>Throughout this section, we'll use the following tensor.</p>
+<pre><code class="language-text">       col
+
+       0   1   2   3
+
+row 0  10  11  12  13
+row 1  20  21  22  23
+row 2  30  31  32  33
+row 3  40  41  42  43
+</code></pre>
+<p>Its shape is</p>
+<pre><code class="language-python">(4, 4)
+</code></pre>
+<hr />
+<h2><span id="1-1-the-mental-model"></span>1.1 The Mental Model</h2>
+<p>For a 2D tensor, indexing always follows the pattern</p>
+<pre><code class="language-python">tensor[row_selector, column_selector]
+</code></pre>
+<p>Think of indexing as a two-step process.</p>
+<ol>
+<li>Select the rows.</li>
+<li>From those rows, select the columns.</li>
+</ol>
+<p>Everything else—integer indexing, slicing, advanced indexing—is simply a variation of this idea.</p>
+<p>For example,</p>
+<pre><code class="language-python">arr[1:3, 0:2]
+</code></pre>
+<p>can be mentally evaluated as</p>
+<pre><code class="language-text">Step 1
+
+Keep rows 1 and 2
+
+↓
+
+20 21 22 23
+30 31 32 33
+
+↓
+
+Step 2
+
+Keep columns 0 and 1
+
+↓
+
+20 21
+30 31
+</code></pre>
+<blockquote>
+<p><strong>Mental Model</strong></p>
+<p>Always think <strong>rows first, columns second</strong>.</p>
+</blockquote>
+<hr />
+<h2><span id="1-2-integer-indexing"></span>1.2 Integer Indexing</h2>
+<p>Selecting an integer removes that dimension.</p>
+<p>Consider</p>
+<pre><code class="language-python">arr[2]
+</code></pre>
+<p>We select exactly one row.</p>
+<pre><code class="language-text">30 31 32 33
+</code></pre>
+<p>Shape</p>
+<pre><code class="language-python">(4,)
+</code></pre>
+<p>Notice that the row dimension has disappeared.</p>
+<p>Instead of a matrix, we now have a single vector.</p>
+<p>Similarly,</p>
+<pre><code class="language-python">arr[2, 1]
+</code></pre>
+<p>returns</p>
+<pre><code class="language-text">31
+</code></pre>
+<p>Shape</p>
+<pre><code class="language-python">()
+</code></pre>
+<p>Both dimensions disappear because we selected exactly one row and one column.</p>
+<h3>Why does this happen?</h3>
+<p>A tensor dimension represents a collection of values.</p>
+<p>When we specify an integer index, that collection collapses into one specific element along that axis.</p>
+<p>There is no longer a dimension to represent.</p>
+<blockquote>
+<p><strong>Key Takeaways</strong></p>
+<ul>
+<li>Integer indexing removes a dimension.</li>
+<li>Selecting one row from <code>(4,4)</code> produces <code>(4,)</code>.</li>
+<li>Selecting one row and one column produces a scalar.</li>
+</ul>
+</blockquote>
+<hr />
+<h2><span id="1-3-slice-indexing"></span>1.3 Slice Indexing</h2>
+<p>Unlike integer indexing, slices preserve dimensions.</p>
+<p>Suppose we write</p>
+<pre><code class="language-python">arr[2:3]
+</code></pre>
+<p>Result</p>
+<pre><code class="language-text">30 31 32 33
+</code></pre>
+<p>Although only one row is selected, the output shape is</p>
+<pre><code class="language-python">(1, 4)
+</code></pre>
+<p>not</p>
+<pre><code class="language-python">(4,)
+</code></pre>
+<p>The reason is that a slice always represents a range—even if that range contains only one element.</p>
+<p>Similarly,</p>
+<pre><code class="language-python">arr[1:3]
+</code></pre>
+<p>returns</p>
+<pre><code class="language-text">20 21 22 23
+30 31 32 33
+</code></pre>
+<p>Shape</p>
+<pre><code class="language-python">(2,4)
+</code></pre>
+<p>Notice how the row dimension is preserved.</p>
+<blockquote>
+<p><strong>Key Takeaways</strong></p>
+<ul>
+<li>Slices preserve dimensions.</li>
+<li><code>2</code> and <code>2:3</code> are fundamentally different.</li>
+<li>Use slices whenever you want to preserve tensor rank.</li>
+</ul>
+</blockquote>
+<hr />
+<h2><span id="1-4-the-colon-operator"></span>1.4 The Colon (<code>:</code>) Operator</h2>
+<p>The colon simply means</p>
+<blockquote>
+<p><strong>Select everything along this axis.</strong></p>
+</blockquote>
+<p>Examples</p>
+<pre><code class="language-python">arr[:, 2]
+</code></pre>
+<p>All rows</p>
+<p>Column 2</p>
+<p>Result</p>
+<pre><code class="language-text">12
+22
+32
+42
+</code></pre>
+<hr />
+<pre><code class="language-python">arr[2, :]
+</code></pre>
+<p>Row 2</p>
+<p>All columns</p>
+<pre><code class="language-text">30 31 32 33
+</code></pre>
+<hr />
+<pre><code class="language-python">arr[:, :]
+</code></pre>
+<p>Entire tensor.</p>
+<p>The colon does not change the tensor.</p>
+<p>It merely states</p>
+<blockquote>
+<p>"Don't filter anything along this dimension."</p>
+<p><strong>Key Takeaways</strong></p>
+<ul>
+<li><code>:</code> means "everything".</li>
+<li>It is commonly used to leave one axis unchanged while selecting another.</li>
+<li>Most indexing expressions use <code>:</code> somewhere.</li>
+</ul>
+</blockquote>
+<hr />
+<h2><span id="1-5-continuous-submatrix-extraction"></span>1.5 Continuous Submatrix Extraction</h2>
+<p>A very common operation is extracting a rectangular block from a tensor.</p>
+<p>Suppose we want the following submatrix.</p>
+<pre><code class="language-text">21 22
+31 32
+</code></pre>
+<p>Visually,</p>
+<pre><code class="language-text">       0   1   2   3
+
+0      10  11  12  13
+1      20 [21 22] 23
+2      30 [31 32] 33
+3      40  41  42  43
+</code></pre>
+<p>Notice that</p>
+<ul>
+<li>Rows are continuous (<code>1, 2</code>)</li>
+<li>Columns are continuous (<code>1, 2</code>)</li>
+</ul>
+<p>Since both rows and columns form contiguous ranges, slicing is the natural choice.</p>
+<pre><code class="language-python">arr[1:3, 1:3]
+</code></pre>
+<p>Output</p>
+<pre><code class="language-text">21 22
+31 32
+</code></pre>
+<p>Shape</p>
+<pre><code class="language-python">(2,2)
+</code></pre>
+<p>This follows directly from our mental model.</p>
+<pre><code class="language-text">Step 1
+
+Keep rows 1 and 2
+
+↓
+
+20 21 22 23
+30 31 32 33
+
+↓
+
+Step 2
+
+Keep columns 1 and 2
+
+↓
+
+21 22
+31 32
+</code></pre>
+<blockquote>
+<p><strong>Rule of Thumb</strong></p>
+<p>If the desired rows and columns are contiguous, use slicing.</p>
+</blockquote>
+<h3>Key Takeaways</h3>
+<ul>
+<li>Continuous rows → use a slice.</li>
+<li>Continuous columns → use a slice.</li>
+<li>Continuous rectangular block → slice both dimensions.</li>
+</ul>
+<hr />
+<h2><span id="1-6-non-continuous-submatrix-extraction"></span>1.6 Non-Continuous Submatrix Extraction</h2>
+<p>Now suppose we want</p>
+<pre><code class="language-text">20 22
+40 42
+</code></pre>
+<p>Rows</p>
+<pre><code class="language-text">1, 3
+</code></pre>
+<p>Columns</p>
+<pre><code class="language-text">0, 2
+</code></pre>
+<p>These rows are <strong>not contiguous</strong>.</p>
+<p>These columns are <strong>not contiguous</strong>.</p>
+<p>Therefore, slices alone cannot represent this selection.</p>
+<p>Many beginners expect the following to work.</p>
+<pre><code class="language-python">arr[[1,3], [0,2]]
+</code></pre>
+<p>Expected</p>
+<pre><code class="language-text">20 22
+40 42
+</code></pre>
+<p>Unfortunately, this is <strong>not</strong> how NumPy or PyTorch interpret the expression.</p>
+<hr />
+<h2><span id="1-7-pairwise-indexing-the-most-common-gotcha"></span>1.7 Pairwise Indexing — The Most Common Gotcha</h2>
+<p>This is one of the most common interview questions and a frequent source of bugs.</p>
+<p>When both dimensions receive index lists,</p>
+<pre><code class="language-python">arr[[1,3], [0,2]]
+</code></pre>
+<p>PyTorch and NumPy <strong>pair the indices together</strong>.</p>
+<p>Think of it as</p>
+<pre><code class="language-python">zip([1,3], [0,2])
+</code></pre>
+<p>The coordinate pairs become</p>
+<pre><code class="language-text">(1,0)
+
+(3,2)
+</code></pre>
+<p>which correspond to</p>
+<pre><code class="language-text">20
+
+42
+</code></pre>
+<p>Result</p>
+<pre><code class="language-python">tensor([20,42])
+</code></pre>
+<p>Shape</p>
+<pre><code class="language-python">(2,)
+</code></pre>
+<p>Notice what did <strong>not</strong> happen.</p>
+<p>The framework never generated all possible row-column combinations.</p>
+<p>Instead, it matched the indices pairwise.</p>
+<p>Visualizing the lookup,</p>
+<pre><code class="language-text">       0   1   2   3
+
+0      10  11  12  13
+
+1     [20] 21  22  23
+
+2      30  31  32  33
+
+3      40  41 [42] 43
+</code></pre>
+<p>This behaviour is identical in both NumPy and PyTorch.</p>
+<blockquote>
+<p><strong>Mental Model</strong></p>
+<p>Multiple index lists behave like coordinate pairs—not row and column sets.</p>
+</blockquote>
+<hr />
+<h3>Extracting a True Non-Continuous Submatrix</h3>
+<p>To obtain</p>
+<pre><code class="language-text">20 22
+40 42
+</code></pre>
+<p>perform the indexing in two steps.</p>
+<p>First,</p>
+<p>select the rows.</p>
+<pre><code class="language-python">arr[[1,3], :]
+</code></pre>
+<p>Result</p>
+<pre><code class="language-text">20 21 22 23
+40 41 42 43
+</code></pre>
+<p>Shape</p>
+<pre><code class="language-python">(2,4)
+</code></pre>
+<p>Now,</p>
+<p>select the desired columns.</p>
+<pre><code class="language-python">arr[[1,3], :][:, [0,2]]
+</code></pre>
+<p>Result</p>
+<pre><code class="language-text">20 22
+40 42
+</code></pre>
+<p>Shape</p>
+<pre><code class="language-python">(2,2)
+</code></pre>
+<p>Thinking visually,</p>
+<pre><code class="language-text">Original
+
+20 21 22 23
+40 41 42 43
+
+↓
+
+Keep columns 0 and 2
+
+↓
+
+20 22
+40 42
+</code></pre>
+<p>Although this looks like two indexing operations,</p>
+<p>this is the correct way to express</p>
+<blockquote>
+<p>"Give me all combinations of these rows and these columns."</p>
+</blockquote>
+<h3>NumPy Alternative</h3>
+<p>NumPy additionally provides</p>
+<pre><code class="language-python">np.ix_()
+</code></pre>
+<p>which constructs the Cartesian product of row and column indices.</p>
+<pre><code class="language-python">arr[np.ix_([1,3], [0,2])]
+</code></pre>
+<p>Output</p>
+<pre><code class="language-text">20 22
+40 42
+</code></pre>
+<p>PyTorch does <strong>not</strong> have a direct equivalent of <code>np.ix_</code>, so the two-step approach remains the clearest and most portable solution.</p>
+<h3>Key Takeaways</h3>
+<ul>
+<li>Multiple index lists do <strong>not</strong> generate a submatrix.</li>
+<li>They are interpreted as coordinate pairs.</li>
+<li>Think <code>zip(rows, cols)</code>, <strong>not</strong> all row-column combinations.</li>
+<li>For a non-contiguous submatrix:<ol>
+<li>Select rows.</li>
+<li>Then select columns.</li>
+</ol>
+</li>
+</ul>
+<hr />
+<h2><span id="1-8-shape-rules"></span>1.8 Shape Rules</h2>
+<p>By now, a clear pattern should have emerged.</p>
+<p>The type of index determines how the output shape changes.</p>
+<table>
+<thead>
+<tr>
+<th>Index Type</th>
+<th>Shape Behaviour</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Integer</td>
+<td>Removes a dimension</td>
+<td><code>arr[2] → (4,)</code></td>
+</tr>
+<tr>
+<td>Slice</td>
+<td>Preserves a dimension</td>
+<td><code>arr[2:3] → (1,4)</code></td>
+</tr>
+<tr>
+<td>List / Tensor</td>
+<td>Size of dimension becomes number of indices</td>
+<td><code>arr[[1,3]] → (2,4)</code></td>
+</tr>
+</tbody>
+</table>
+<p>These three rules explain the vast majority of indexing operations encountered in practice.</p>
+<h3>Section Summary</h3>
+<p>✔ Integer indexing removes dimensions.</p>
+<p>✔ Slice indexing preserves dimensions.</p>
+<p>✔ <code>:</code> means "everything" along that axis.</p>
+<p>✔ Continuous submatrices are naturally expressed using slices.</p>
+<p>✔ Multiple index lists represent <strong>pairwise coordinates</strong>, not submatrices.</p>
+<p>✔ Non-contiguous submatrices should be extracted by selecting rows first and columns second.</p>
+<h1><span id="2-advanced-indexing"></span>2 Advanced Indexing</h1>
+<p>So far, our index has either been</p>
+<ul>
+<li>an integer,</li>
+<li>a slice, or</li>
+<li>a one-dimensional list.</li>
+</ul>
+<p>What happens if the index itself is a tensor?</p>
+<p>This seemingly simple idea powers one of the most fundamental operations in deep learning—<strong>embedding lookup</strong>.</p>
+<p>Throughout this section, consider the tensor</p>
+<pre><code class="language-python">A.shape == (8,8)
+</code></pre>
+<p>Each row contains eight values.</p>
+<hr />
+<h2><span id="2-1-single-row-lookup"></span>2.1 Single Row Lookup</h2>
+<p>Suppose we index with a single integer.</p>
+<pre><code class="language-python">A[3]
+</code></pre>
+<p>The output is</p>
+<pre><code class="language-python">shape = (8,)
+</code></pre>
+<p>We obtain the fourth row.</p>
+<p>Nothing surprising here—this is simply integer indexing.</p>
+<pre><code class="language-text">A
+
+Row 0
+
+Row 1
+
+Row 2
+
+Row 3  ← Selected
+
+↓
+
+Output
+
+(8,)
+</code></pre>
+<h3>Key Takeaways</h3>
+<ul>
+<li>Scalar index selects one row.</li>
+<li>Integer indexing removes one dimension.</li>
+<li>Output shape is simply the remaining dimensions.</li>
+</ul>
+<hr />
+<h2><span id="2-2-multiple-row-lookup"></span>2.2 Multiple Row Lookup</h2>
+<p>Now suppose we index with several rows.</p>
+<pre><code class="language-python">A[[0,2,5]]
+</code></pre>
+<p>Instead of one row,</p>
+<p>PyTorch returns all requested rows stacked together.</p>
+<p>Output</p>
+<pre><code class="language-python">shape = (3,8)
+</code></pre>
+<p>Visualize it as</p>
+<pre><code class="language-text">Input indices
+
+0
+
+2
+
+5
+
+↓
+
+Row 0
+
+Row 2
+
+Row 5
+
+↓
+
+Stack
+
+↓
+
+(3,8)
+</code></pre>
+<p>Notice that</p>
+<pre><code class="language-python">3
+</code></pre>
+<p>comes directly from the number of indices supplied.</p>
+<p>The original tensor has not changed.</p>
+<p>We have simply gathered three rows from it.</p>
+<p>Exactly the same behaviour exists in NumPy.</p>
+<h3>Key Takeaways</h3>
+<ul>
+<li>List indexing gathers multiple rows.</li>
+<li>Number of selected rows equals the number of indices.</li>
+<li>Shape becomes</li>
+</ul>
+<pre><code class="language-python">(number_of_indices, remaining_dimensions)
+</code></pre>
+<hr />
+<h2><span id="2-3-batched-row-lookup"></span>2.3 Batched Row Lookup</h2>
+<p>Now comes the important idea.</p>
+<p>Instead of a one-dimensional index tensor,</p>
+<p>suppose the indices themselves have shape</p>
+<pre><code class="language-python">(2,3)
+</code></pre>
+<p>For example,</p>
+<pre><code class="language-python">indices =
+
+[[0,2,3],
+
+ [2,5,7]]
+</code></pre>
+<p>Performing</p>
+<pre><code class="language-python">A[indices]
+</code></pre>
+<p>produces</p>
+<pre><code class="language-python">shape = (2,3,8)
+</code></pre>
+<p>Why?</p>
+<p>Think of each row of the index tensor independently.</p>
+<p>Batch 0</p>
+<pre><code class="language-text">0
+
+2
+
+3
+
+↓
+
+Three rows
+
+↓
+
+(3,8)
+</code></pre>
+<p>Batch 1</p>
+<pre><code class="language-text">2
+
+5
+
+7
+
+↓
+
+Three rows
+
+↓
+
+(3,8)
+</code></pre>
+<p>Finally,</p>
+<p>both batches are stacked together.</p>
+<pre><code class="language-text">Batch 0
+
+(3,8)
+
+Batch 1
+
+(3,8)
+
+↓
+
+(2,3,8)
+</code></pre>
+<p>Notice something interesting.</p>
+<p>The output shape begins with</p>
+<pre><code class="language-python">(2,3)
+</code></pre>
+<p>which is exactly the shape of the index tensor.</p>
+<p>The remaining dimension</p>
+<pre><code class="language-python">8
+</code></pre>
+<p>comes from the original tensor.</p>
+<h3>Key Takeaways</h3>
+<ul>
+<li>Index tensors can themselves be multi-dimensional.</li>
+<li>Every index becomes one lookup.</li>
+<li>The shape of the index tensor is preserved in the output.</li>
+</ul>
+<hr />
+<h2><span id="2-4-the-golden-rule"></span>2.4 The Golden Rule</h2>
+<p>After seeing several examples, a very useful rule emerges.</p>
+<blockquote>
+<p><strong>Output Shape = Index Shape + Remaining Tensor Dimensions</strong></p>
+</blockquote>
+<p>This single rule explains almost every advanced indexing operation.</p>
+<p>Examples</p>
+<table>
+<thead>
+<tr>
+<th>Tensor Shape</th>
+<th>Index Shape</th>
+<th>Output Shape</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>(8,8)</code></td>
+<td><code>()</code></td>
+<td><code>(8,)</code></td>
+</tr>
+<tr>
+<td><code>(8,8)</code></td>
+<td><code>(3,)</code></td>
+<td><code>(3,8)</code></td>
+</tr>
+<tr>
+<td><code>(8,8)</code></td>
+<td><code>(2,3)</code></td>
+<td><code>(2,3,8)</code></td>
+</tr>
+<tr>
+<td><code>(50000,768)</code></td>
+<td><code>(4,)</code></td>
+<td><code>(4,768)</code></td>
+</tr>
+<tr>
+<td><code>(50000,768)</code></td>
+<td><code>(32,128)</code></td>
+<td><code>(32,128,768)</code></td>
+</tr>
+</tbody>
+</table>
+<p>Whenever you're unsure about an indexing expression,</p>
+<p>first determine</p>
+<ol>
+<li>the shape of the index tensor,</li>
+<li>the remaining dimensions of the source tensor.</li>
+</ol>
+<p>Concatenate them together.</p>
+<p>That is almost always the output shape.</p>
+<h3>Key Takeaways</h3>
+<ul>
+<li>Learn the golden rule instead of memorizing examples.</li>
+<li>Output shape = Index Shape + Remaining Tensor Dimensions.</li>
+<li>This rule directly explains embedding layers.</li>
+</ul>
+<hr />
+<h2><span id="2-5-why-embedding-layers-work"></span>2.5 Why Embedding Layers Work</h2>
+<p>Suppose</p>
+<pre><code class="language-python">E.shape == (50000,768)
+</code></pre>
+<p>where</p>
+<ul>
+<li>50000 = vocabulary size</li>
+<li>768 = embedding dimension</li>
+</ul>
+<p>Now consider a token batch.</p>
+<pre><code class="language-python">tokens.shape == (32,128)
+</code></pre>
+<p>where</p>
+<ul>
+<li>32 = batch size</li>
+<li>128 = sequence length</li>
+</ul>
+<p>Running</p>
+<pre><code class="language-python">E[tokens]
+</code></pre>
+<p>produces</p>
+<pre><code class="language-python">(32,128,768)
+</code></pre>
+<p>No magic happened.</p>
+<p>PyTorch simply performed advanced indexing.</p>
+<p>Every integer inside</p>
+<pre><code class="language-python">tokens
+</code></pre>
+<p>was used to look up one row of</p>
+<pre><code class="language-python">E
+</code></pre>
+<p>The batch dimension</p>
+<pre><code class="language-python">32
+</code></pre>
+<p>was preserved.</p>
+<p>The sequence dimension</p>
+<pre><code class="language-python">128
+</code></pre>
+<p>was preserved.</p>
+<p>The embedding dimension</p>
+<pre><code class="language-python">768
+</code></pre>
+<p>came from the original embedding table.</p>
+<p>Thinking visually,</p>
+<pre><code class="language-text">Embedding Table
+
+(V,D)
+
+↓
+
+Index Tensor
+
+(B,T)
+
+↓
+
+Output
+
+(B,T,D)
+</code></pre>
+<p>Once viewed through the lens of tensor indexing,</p>
+<p>an embedding layer is nothing more than a batched row lookup.</p>
+<h3>Section Summary</h3>
+<p>✔ Integer indexing selects one row.</p>
+<p>✔ List indexing selects multiple rows.</p>
+<p>✔ Tensor indexing performs batched row lookups.</p>
+<p>✔ Output Shape = Index Shape + Remaining Tensor Dimensions.</p>
+<p>✔ <code>nn.Embedding</code> is fundamentally an advanced indexing operation.</p>
+<h1><span id="3-embedding-layers"></span>3 Embedding Layers</h1>
+<p>An embedding layer converts a discrete token into a dense vector representation.</p>
+<p>For example,</p>
+<pre><code class="language-python">Vocabulary Size = 27
+
+Embedding Dimension = 2
+</code></pre>
+<p>The embedding layer stores one 2-dimensional vector for every vocabulary token.</p>
+<p>Conceptually,</p>
+<pre><code class="language-text">Token ID
+
+↓
+
+Embedding Table
+
+↓
+
+Embedding Vector
+</code></pre>
+<p>The important question is:</p>
+<blockquote>
+<p><strong>How does the embedding layer retrieve the correct row?</strong></p>
+</blockquote>
+<p>There are two equivalent ways to think about it.</p>
+<hr />
+<h2><span id="3-1-one-hot-encoding-matrix-multiplication"></span>3.1 One-Hot Encoding + Matrix Multiplication</h2>
+<p>Suppose our vocabulary size is</p>
+<pre><code class="language-python">V = 27
+</code></pre>
+<p>and the embedding dimension is</p>
+<pre><code class="language-python">D = 2
+</code></pre>
+<p>We begin by representing the token as a one-hot vector.</p>
+<p>For example,</p>
+<pre><code class="language-text">Token = 3
+
+↓
+
+[0 0 0 1 0 0 ... 0]
+</code></pre>
+<p>Shape</p>
+<pre><code class="language-python">(27,)
+</code></pre>
+<p>The embedding matrix has shape</p>
+<pre><code class="language-python">W.shape == (27,2)
+</code></pre>
+<p>The embedding is computed as</p>
+<pre><code class="language-python">X_emb = X_inp.T @ W
+</code></pre>
+<p>Shape</p>
+<pre><code class="language-text">(1 × 27)
+
+×
+
+(27 × 2)
+
+↓
+
+(1 × 2)
+</code></pre>
+<p>But something much more interesting is happening.</p>
+<p>Since the one-hot vector contains exactly one value equal to one,</p>
+<p>every row except one gets multiplied by zero.</p>
+<p>Suppose</p>
+<pre><code class="language-text">Token = 3
+</code></pre>
+<p>Then</p>
+<pre><code class="language-text">0 × Row 0
+
+0 × Row 1
+
+0 × Row 2
+
+1 × Row 3
+
+0 × Row 4
+
+...
+</code></pre>
+<p>Everything disappears except</p>
+<pre><code class="language-text">Row 3
+</code></pre>
+<p>The matrix multiplication simply returns</p>
+<pre><code class="language-text">Row 3 of W
+</code></pre>
+<p>Nothing more.</p>
+<p>Nothing less.</p>
+<blockquote>
+<p><strong>Mental Model</strong></p>
+<p>One-hot encoding + matrix multiplication is simply a row lookup.</p>
+</blockquote>
+<hr />
+<h3>Example</h3>
+<p>Suppose</p>
+<pre><code class="language-text">Embedding Matrix
+
+Token
+
+0 → [0.2 0.8]
+
+1 → [1.3 0.1]
+
+2 → [2.5 1.7]
+
+3 → [4.0 3.2]
+</code></pre>
+<p>If</p>
+<pre><code class="language-text">Token = 2
+</code></pre>
+<p>then</p>
+<pre><code class="language-python">X.T @ W
+</code></pre>
+<p>returns</p>
+<pre><code class="language-text">[2.5 1.7]
+</code></pre>
+<p>which is exactly the third row.</p>
+<h3>Key Takeaways</h3>
+<ul>
+<li>One-hot vectors contain exactly one non-zero entry.</li>
+<li>Matrix multiplication keeps only one row.</li>
+<li>OHE + Linear Layer = Row Lookup.</li>
+</ul>
+<hr />
+<h2><span id="3-2-integer-lookup-nn-embedding"></span>3.2 Integer Lookup (<code>nn.Embedding</code>)</h2>
+<p>Instead of constructing a one-hot vector,</p>
+<p>PyTorch stores the same embedding matrix but directly indexes it.</p>
+<p>Suppose</p>
+<pre><code class="language-python">E.shape == (27,2)
+</code></pre>
+<p>Now,</p>
+<p>instead of</p>
+<pre><code class="language-python">X.T @ W
+</code></pre>
+<p>we simply write</p>
+<pre><code class="language-python">E[token]
+</code></pre>
+<p>If</p>
+<pre><code class="language-python">token = 2
+</code></pre>
+<p>then</p>
+<pre><code class="language-python">E[2]
+</code></pre>
+<p>returns</p>
+<pre><code class="language-text">[2.5 1.7]
+</code></pre>
+<p>which is exactly the same vector obtained using one-hot encoding.</p>
+<p>Notice that no one-hot vector was ever created.</p>
+<p>PyTorch directly performs a row lookup.</p>
+<p>Thinking visually,</p>
+<pre><code class="language-text">Token ID
+
+↓
+
+Row Number
+
+↓
+
+Embedding Matrix
+
+↓
+
+Selected Row
+</code></pre>
+<p>Exactly the same operation.</p>
+<h3>Why is this preferred?</h3>
+<p>Creating a one-hot vector of length</p>
+<pre><code class="language-python">50000
+</code></pre>
+<p>for every token is wasteful.</p>
+<p>Almost every value is zero.</p>
+<p>Instead,</p>
+<p>PyTorch simply jumps directly to the desired row.</p>
+<p>This saves</p>
+<ul>
+<li>memory,</li>
+<li>computation,</li>
+<li>and time.</li>
+</ul>
+<hr />
+<h2><span id="3-3-why-both-methods-are-equivalent"></span>3.3 Why Both Methods Are Equivalent</h2>
+<p>At first glance,</p>
+<p>these two pieces of code appear completely different.</p>
+<p><strong>Method 1</strong></p>
+<pre><code class="language-python">X_emb = X.T @ W
+</code></pre>
+<p><strong>Method 2</strong></p>
+<pre><code class="language-python">X_emb = E[token]
+</code></pre>
+<p>In reality,</p>
+<p>they perform exactly the same operation.</p>
+<table>
+<thead>
+<tr>
+<th>One-Hot Encoding</th>
+<th>Embedding Lookup</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Build one-hot vector</td>
+<td>Use integer index</td>
+</tr>
+<tr>
+<td>Multiply with embedding matrix</td>
+<td>Directly index embedding matrix</td>
+</tr>
+<tr>
+<td>Select row <em>i</em></td>
+<td>Select row <em>i</em></td>
+</tr>
+<tr>
+<td>Output embedding vector</td>
+<td>Output embedding vector</td>
+</tr>
+</tbody>
+</table>
+<p>The only difference is <strong>how the row is accessed</strong>.</p>
+<p>One method computes it indirectly through matrix multiplication.</p>
+<p>The other retrieves it directly through indexing.</p>
+<p>Mathematically,</p>
+<p>both produce identical embeddings.</p>
+<p>This is why <code>nn.Embedding</code> can be viewed as nothing more than an optimized implementation of one-hot encoding followed by a linear layer without bias.</p>
+<h3>Connection to the Previous Chapter</h3>
+<p>Recall the Golden Rule.</p>
+<pre><code>Output Shape
+
+=
+
+Index Shape
+
++
+
+Remaining Tensor Dimensions
+</code></pre>
+<p>Suppose</p>
+<pre><code class="language-python">tokens.shape == (32,128)
+</code></pre>
+<p>and</p>
+<pre><code class="language-python">E.shape == (50000,768)
+</code></pre>
+<p>Then</p>
+<pre><code class="language-python">E[tokens]
+</code></pre>
+<p>produces</p>
+<pre><code class="language-python">(32,128,768)
+</code></pre>
+<p>because</p>
+<pre><code class="language-text">Index Shape
+
+(32,128)
+
++
+
+Remaining Dimensions
+
+(768)
+
+↓
+
+(32,128,768)
+</code></pre>
+<p>The embedding layer is simply advanced indexing applied to the embedding matrix.</p>
+<h3>Section Summary</h3>
+<p>✔ Every token corresponds to one row of the embedding matrix.</p>
+<p>✔ One-hot encoding selects that row through matrix multiplication.</p>
+<p>✔ <code>nn.Embedding</code> selects the same row through indexing.</p>
+<p>✔ Both methods produce identical embeddings.</p>
+<p>✔ <code>nn.Embedding</code> is faster because it skips constructing sparse one-hot vectors.</p>
+<h1><span id="4-reshaping-tensors"></span>4 Reshaping Tensors</h1>
+<p>Reshaping changes <strong>how we interpret the data</strong>, not the data itself.</p>
+<p>This is an important distinction.</p>
+<p>Whenever possible, PyTorch simply changes the tensor's metadata instead of moving values in memory.</p>
+<p>Throughout this section, we'll use</p>
+<pre><code class="language-python">x = torch.arange(12)
+
+tensor([0, 1, 2, ..., 11])
+</code></pre>
+<p>Shape</p>
+<pre><code class="language-python">(12,)
+</code></pre>
+<hr />
+<h2><span id="4-1-reshaping"></span>4.1 Reshaping</h2>
+<p>Suppose we reshape</p>
+<pre><code class="language-python">x.reshape(3,4)
+</code></pre>
+<p>Result</p>
+<pre><code class="language-text">0  1  2  3
+4  5  6  7
+8  9 10 11
+</code></pre>
+<p>Shape</p>
+<pre><code class="language-python">(3,4)
+</code></pre>
+<p>Notice that</p>
+<ul>
+<li>no values changed,</li>
+<li>no values were reordered.</li>
+</ul>
+<p>Only our interpretation of the data changed.</p>
+<p>Similarly,</p>
+<pre><code class="language-python">x.reshape(2,2,3)
+</code></pre>
+<p>produces</p>
+<pre><code class="language-python">shape = (2,2,3)
+</code></pre>
+<p>The elements still appear in exactly the same order.</p>
+<h3>Mental Model</h3>
+<p>Think of reshaping as pouring the same water into a differently shaped container.</p>
+<p>The water doesn't change.</p>
+<p>Only the container does.</p>
+<h3>Key Takeaways</h3>
+<ul>
+<li><code>reshape()</code> changes the shape.</li>
+<li>It never changes element order.</li>
+<li>Total number of elements must remain the same.</li>
+</ul>
+<hr />
+<h2><span id="4-2-flattening"></span>4.2 Flattening</h2>
+<p>Flattening converts a higher-dimensional tensor into a one-dimensional tensor.</p>
+<p>Suppose</p>
+<pre><code class="language-python">A =
+</code></pre>
+<pre><code class="language-text">1 2
+3 4
+</code></pre>
+<p>Shape</p>
+<pre><code class="language-python">(2,2)
+</code></pre>
+<p>Flattening produces</p>
+<pre><code class="language-python">tensor([1,2,3,4])
+</code></pre>
+<p>Shape</p>
+<pre><code class="language-python">(4,)
+</code></pre>
+<p>PyTorch provides several ways to achieve this.</p>
+<h3>Method 1 — <code>reshape()</code></h3>
+<pre><code class="language-python">A.reshape(-1)
+</code></pre>
+<hr />
+<h3>Method 2 — <code>view()</code></h3>
+<pre><code class="language-python">A.view(-1)
+</code></pre>
+<hr />
+<h3>Method 3 — <code>flatten()</code></h3>
+<pre><code class="language-python">torch.flatten(A)
+</code></pre>
+<p>For most practical purposes,</p>
+<p>all three produce</p>
+<pre><code class="language-python">tensor([1,2,3,4])
+</code></pre>
+<h3>Which should I use?</h3>
+<p>If your goal is simply</p>
+<blockquote>
+<p>"Convert everything into one dimension"</p>
+</blockquote>
+<p>then</p>
+<pre><code class="language-python">torch.flatten()
+</code></pre>
+<p>is the most expressive.</p>
+<p>If you're already reshaping tensors elsewhere,</p>
+<pre><code class="language-python">reshape(-1)
+</code></pre>
+<p>is perfectly acceptable.</p>
+<h3>Key Takeaways</h3>
+<ul>
+<li>Flattening is simply reshaping into one dimension.</li>
+<li>The element order remains unchanged.</li>
+<li><code>flatten()</code>, <code>reshape(-1)</code> and <code>view(-1)</code> often produce identical results.</li>
+</ul>
+<hr />
+<h2><span id="4-3-view-vs-reshape"></span>4.3 <code>view()</code> vs <code>reshape()</code></h2>
+<p>These two functions often confuse beginners.</p>
+<p>At first glance,</p>
+<p>they appear identical.</p>
+<pre><code class="language-python">x.view(3,4)
+</code></pre>
+<pre><code class="language-python">x.reshape(3,4)
+</code></pre>
+<p>In many cases,</p>
+<p>they produce exactly the same output.</p>
+<p>The difference lies in <strong>memory</strong>.</p>
+<h3>The Mental Model</h3>
+<p>Internally,</p>
+<p>PyTorch stores tensor values as one long one-dimensional block of memory.</p>
+<p>For example,</p>
+<pre><code class="language-python">A =
+</code></pre>
+<pre><code class="language-text">1 2
+3 4
+</code></pre>
+<p>is actually stored as</p>
+<pre><code class="language-text">1 2 3 4
+</code></pre>
+<p>The tensor's shape,</p>
+<p>number of dimensions,</p>
+<p>and strides simply tell PyTorch how to interpret this memory.</p>
+<p>Changing the shape often requires changing only this metadata.</p>
+<p>No data movement is necessary.</p>
+<p>Visualize it as</p>
+<pre><code class="language-text">Underlying Storage
+
+1 2 3 4 5 6 7 8
+
+↓
+
+View A
+
+2 × 4
+
+↓
+
+View B
+
+4 × 2
+
+↓
+
+View C
+
+8
+</code></pre>
+<p>The underlying storage never changes.</p>
+<p>Only the interpretation changes.</p>
+<h3><code>view()</code></h3>
+<p><code>view()</code> creates another interpretation of the same memory.</p>
+<p>No new tensor is allocated.</p>
+<p>This makes it extremely memory efficient.</p>
+<p>However,</p>
+<p><code>view()</code> requires the tensor to occupy contiguous memory.</p>
+<p>If the tensor is not contiguous,</p>
+<p><code>view()</code> raises an error.</p>
+<hr />
+<h3><code>reshape()</code></h3>
+<p><code>reshape()</code> is more flexible.</p>
+<p>Whenever possible,</p>
+<p>it behaves exactly like <code>view()</code>.</p>
+<p>If the tensor is not contiguous,</p>
+<p>PyTorch silently creates a new contiguous tensor before reshaping.</p>
+<p>Because of this,</p>
+<p><code>reshape()</code> almost always succeeds.</p>
+<h3>Practical Recommendation</h3>
+<p>Unless you specifically need the guarantees provided by <code>view()</code>,</p>
+<p>prefer</p>
+<pre><code class="language-python">reshape()
+</code></pre>
+<p>It is more robust and easier to use.</p>
+<p>PyTorch will automatically use a view whenever possible.</p>
+<h3>NumPy Comparison</h3>
+<p>NumPy behaves similarly.</p>
+<pre><code class="language-python">np.reshape()
+</code></pre>
+<p>attempts to return a view whenever possible,</p>
+<p>but may allocate new memory if necessary.</p>
+<p>Thus,</p>
+<p>the high-level intuition is the same in both libraries.</p>
+<h3>Key Takeaways</h3>
+<ul>
+<li>Tensor values are stored in one contiguous memory block.</li>
+<li>Shape is only metadata describing how that memory should be interpreted.</li>
+<li><code>view()</code> never copies data.</li>
+<li><code>view()</code> requires contiguous memory.</li>
+<li><code>reshape()</code> uses a view when possible and copies only when necessary.</li>
+</ul>
+<hr />
+<h3>Section Summary</h3>
+<p>✔ Reshaping changes interpretation, not values.</p>
+<p>✔ Flattening is simply reshaping into one dimension.</p>
+<p>✔ Tensor storage is fundamentally one-dimensional.</p>
+<p>✔ <code>view()</code> is a new interpretation of existing memory.</p>
+<p>✔ <code>reshape()</code> is the safer, more general API.</p>
+<h1><span id="5-combining-tensors"></span>5 Combining Tensors</h1>
+<p>When working with tensors, we frequently need to combine multiple tensors into one.</p>
+<p>Before choosing an operation, always ask yourself one question.</p>
+<blockquote>
+<p><strong>Am I making an existing dimension larger, or am I creating an entirely new dimension?</strong></p>
+</blockquote>
+<p>Almost every tensor combination function can be understood through this lens.</p>
+<p>Throughout this section, let</p>
+<pre><code class="language-python">A =
+
+[[1,2],
+ [3,4]]
+
+B =
+
+[[5,6],
+ [7,8]]
+</code></pre>
+<p>Both tensors have shape</p>
+<pre><code class="language-python">(2,2)
+</code></pre>
+<hr />
+<h2><span id="5-1-concatenate-torch-cat"></span>5.1 <code>concatenate()</code> / <code>torch.cat()</code></h2>
+<p>Concatenation joins tensors along an <strong>existing dimension</strong>.</p>
+<p>No new dimension is introduced.</p>
+<h3>Example 1 — Concatenate Rows</h3>
+<pre><code class="language-python">np.concatenate([A,B], axis=0) # Numpy
+
+torch.cat([A,B], dim=0) # PyTorch
+</code></pre>
+<p>Result</p>
+<pre><code class="language-text">1 2
+3 4
+5 6
+7 8
+</code></pre>
+<p>Shape</p>
+<pre><code class="language-python">(4,2)
+</code></pre>
+<p>Notice that</p>
+<p>only the row dimension became larger.</p>
+<pre><code class="language-text">Before
+
+(2,2)
+
++
+
+(2,2)
+
+↓
+
+After
+
+(4,2)
+</code></pre>
+<hr />
+<h3>Example 2 — Concatenate Columns</h3>
+<pre><code class="language-python">np.concatenate([A,B], axis=1) # Numpy
+
+torch.cat([A,B], dim=1) # PyTorch
+</code></pre>
+<p>Result</p>
+<pre><code class="language-text">1 2 5 6
+3 4 7 8
+</code></pre>
+<p>Shape</p>
+<pre><code class="language-python">(2,4)
+</code></pre>
+<p>This time,</p>
+<p>the column dimension became larger.</p>
+<h3>Mental Model</h3>
+<p>Concatenation <strong>extends an existing axis</strong>.</p>
+<p>Nothing new is created.</p>
+<h3>Key Takeaways</h3>
+<ul>
+<li><code>concatenate()</code> and <code>torch.cat()</code> are equivalent.</li>
+<li>Existing dimension grows.</li>
+<li>Tensor rank remains unchanged.</li>
+</ul>
+<hr />
+<h2><span id="5-2-stack-torch-stack"></span>5.2 <code>stack()</code> / <code>torch.stack()</code></h2>
+<p>Unlike concatenation,</p>
+<p>stacking creates an <strong>entirely new dimension</strong>.</p>
+<p>Instead of asking</p>
+<blockquote>
+<p>"Where should these values go?"</p>
+</blockquote>
+<p>think</p>
+<blockquote>
+<p>"I need one more axis."</p>
+</blockquote>
+<hr />
+<h3>Example 1 — Stack Along <code>axis=0</code></h3>
+<pre><code class="language-python">np.stack([A,B], axis=0) # Numpy
+
+torch.stack([A,B], dim=0) # PyTorch
+</code></pre>
+<p>Result</p>
+<pre><code class="language-text">Layer 0
+
+1 2
+3 4
+
+────────────
+
+Layer 1
+
+5 6
+7 8
+</code></pre>
+<p>Shape</p>
+<pre><code class="language-python">(2,2,2)
+</code></pre>
+<p>Interpretation</p>
+<pre><code class="language-text">2 matrices
+
+↓
+
+Each matrix has
+
+2 rows
+
+↓
+
+Each row has
+
+2 columns
+</code></pre>
+<p>Notice</p>
+<p>the new dimension became the outermost axis.</p>
+<hr />
+<h3>Example 2 — Stack Along <code>axis=1</code></h3>
+<pre><code class="language-python">np.stack([A,B], axis=1) # Numpy
+
+torch.stack([A,B], dim=1) # PyTorch
+</code></pre>
+<p>Shape</p>
+<pre><code class="language-python">(2,2,2)
+</code></pre>
+<p>Although the shape is identical,</p>
+<p>the meaning is completely different.</p>
+<p>Think row-wise.</p>
+<pre><code class="language-text">Row 0
+
+[
+ [1 2]
+
+ [5 6]
+]
+
+Row 1
+
+[
+ [3 4]
+
+ [7 8]
+]
+</code></pre>
+<p>The new dimension was inserted between</p>
+<p>rows</p>
+<p>and</p>
+<p>columns.</p>
+<hr />
+<h3>Example 3 — Stack Along <code>axis=-1</code></h3>
+<pre><code class="language-python">np.stack([A,B], axis=-1) # Numpy
+
+torch.stack([A,B], dim=-1) # PyTorch
+</code></pre>
+<p>Result</p>
+<pre><code class="language-text">[[1,5] [2,6]]
+
+[[3,7] [4,8]]
+</code></pre>
+<p>Shape</p>
+<pre><code class="language-python">(2,2,2)
+</code></pre>
+<p>Now,</p>
+<p>every element became a pair.</p>
+<p>Instead of thinking</p>
+<pre><code class="language-text">One scalar
+</code></pre>
+<p>think</p>
+<pre><code class="language-text">One vector
+
+↓
+
+[1,5]
+</code></pre>
+<p>This is a very common operation when constructing feature vectors.</p>
+<h3>Mental Model</h3>
+<p><code>stack()</code> first creates a new dimension,</p>
+<p>then places tensors along that dimension.</p>
+<h3>Key Takeaways</h3>
+<ul>
+<li><code>stack()</code> always increases tensor rank by one.</li>
+<li>Same shape does <strong>not</strong> imply same meaning.</li>
+<li>The chosen axis determines where the new dimension is inserted.</li>
+</ul>
+<hr />
+<h2><span id="5-3-expand-dims-unsqueeze"></span>5.3 <code>expand_dims()</code> / <code>unsqueeze()</code></h2>
+<p>Sometimes we don't want to join tensors.</p>
+<p>We simply want to add a dimension of size one.</p>
+<p>NumPy</p>
+<pre><code class="language-python">np.expand_dims() # Numpy
+
+torch.unsqueeze() # PyTorch
+</code></pre>
+<p>perform exactly this operation.</p>
+<p>Suppose</p>
+<pre><code class="language-python">A.shape
+
+(2,2)
+</code></pre>
+<p>Adding a leading dimension</p>
+<pre><code class="language-python">np.expand_dims(A, axis=0) # Numpy
+
+A.unsqueeze(0) # PyTorch
+</code></pre>
+<p>produces</p>
+<pre><code class="language-python">(1,2,2)
+</code></pre>
+<p>Interpretation</p>
+<pre><code class="language-text">1 matrix
+
+↓
+
+2 rows
+
+↓
+
+2 columns
+</code></pre>
+<p>Adding a trailing dimension</p>
+<pre><code class="language-python">np.expand_dims(A, axis=-1) # Numpy
+
+A.unsqueeze(-1) # PyTorch
+</code></pre>
+<p>produces</p>
+<pre><code class="language-python">(2,2,1)
+</code></pre>
+<p>This is particularly useful before broadcasting,</p>
+<p>which we'll study in the next chapter.</p>
+<h3>Key Takeaways</h3>
+<ul>
+<li><code>expand_dims()</code> and <code>unsqueeze()</code> are equivalent.</li>
+<li>They always insert a dimension of size one.</li>
+<li>They never modify the underlying data.</li>
+</ul>
+<hr />
+<h2><span id="5-4-squeeze"></span>5.4 <code>squeeze()</code></h2>
+<p><code>squeeze()</code> performs the opposite operation.</p>
+<p>It removes dimensions whose size equals one.</p>
+<p>Suppose</p>
+<pre><code class="language-python">A.shape
+
+(1,2,2,1)
+</code></pre>
+<p>Then</p>
+<pre><code class="language-python">A.squeeze()
+</code></pre>
+<p>produces</p>
+<pre><code class="language-python">(2,2)
+</code></pre>
+<p>Only singleton dimensions disappear.</p>
+<p>Dimensions larger than one remain untouched.</p>
+<h3>Mental Model</h3>
+<p>Think of</p>
+<pre><code class="language-python">unsqueeze()
+</code></pre>
+<p>and</p>
+<pre><code class="language-python">squeeze()
+</code></pre>
+<p>as inverse operations.</p>
+<pre><code class="language-text">(2,2)
+
+↓
+
+unsqueeze(0)
+
+↓
+
+(1,2,2)
+
+↓
+
+squeeze()
+
+↓
+
+(2,2)
+</code></pre>
+<h3>Key Takeaways</h3>
+<ul>
+<li><code>squeeze()</code> removes singleton dimensions.</li>
+<li>It never removes dimensions larger than one.</li>
+<li>It is the inverse of <code>unsqueeze()</code>.</li>
+</ul>
+<hr />
+<h3>Section Summary</h3>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>Existing Dimension Grows?</th>
+<th>New Dimension Created?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>concatenate()</code> / <code>torch.cat()</code></td>
+<td>✅ Yes</td>
+<td>❌ No</td>
+</tr>
+<tr>
+<td><code>stack()</code> / <code>torch.stack()</code></td>
+<td>❌ No</td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td><code>reshape()</code></td>
+<td>❌ No</td>
+<td>❌ No</td>
+</tr>
+<tr>
+<td><code>expand_dims()</code> / <code>unsqueeze()</code></td>
+<td>❌ No</td>
+<td>✅ Size = 1</td>
+</tr>
+<tr>
+<td><code>squeeze()</code></td>
+<td>❌ No</td>
+<td>Removes Size-1 Dimension</td>
+</tr>
+</tbody>
+</table>
+<h3>Memory Rules</h3>
+<p>✔ <code>cat()</code> extends an existing dimension.</p>
+<p>✔ <code>stack()</code> inserts a new dimension.</p>
+<p>✔ <code>reshape()</code> changes only the interpretation.</p>
+<p>✔ <code>unsqueeze()</code> inserts a singleton dimension.</p>
+<p>✔ <code>squeeze()</code> removes singleton dimensions.</p>
+<h1><span id="6-broadcasting"></span>6 Broadcasting</h1>
+<p>Broadcasting allows NumPy and PyTorch to perform element-wise operations on tensors of different shapes <strong>without explicitly copying data</strong>.</p>
+<p>Instead of physically expanding smaller tensors, the framework <strong>pretends</strong> that dimensions of size one have been stretched to match the larger tensor.</p>
+<p>Broadcasting is one of the reasons tensor libraries are both expressive and efficient.</p>
+<hr />
+<h2><span id="6-1-the-broadcasting-rules"></span>6.1 The Broadcasting Rules</h2>
+<p>Whenever two tensors participate in an element-wise operation (<code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, etc.), the following rules are applied.</p>
+<h3>Rule 1 — Align Shapes from the Right</h3>
+<p>If the tensors have different ranks,</p>
+<p>pad the smaller shape with leading dimensions of size one.</p>
+<p>Example</p>
+<pre><code class="language-text">(2,3)
+
++
+
+(3,)
+
+↓
+
+(2,3)
+
++
+
+(1,3)
+</code></pre>
+<p>Notice that only the shape changes.</p>
+<p>No data has been copied.</p>
+<hr />
+<h3>Rule 2 — Compare Dimensions Right to Left</h3>
+<p>For every axis,</p>
+<p>the dimensions are compatible if</p>
+<ul>
+<li>they are equal, or</li>
+<li>one of them is <code>1</code>.</li>
+</ul>
+<p>Otherwise,</p>
+<p>broadcasting fails.</p>
+<hr />
+<h3>Rule 3 — Output Dimension = Maximum</h3>
+<p>For every axis,</p>
+<p>the output dimension is simply</p>
+<pre><code class="language-text">max(dimA, dimB)
+</code></pre>
+<hr />
+<h3>Mental Algorithm</h3>
+<p>Whenever you're unsure,</p>
+<p>follow the same four steps.</p>
+<pre><code class="language-text">Pad smaller shape with leading 1's
+
+↓
+
+Compare dimensions from RIGHT to LEFT
+
+↓
+
+Equal or One?
+
+↓
+
+Take the Maximum
+
+↓
+
+Otherwise → Error
+</code></pre>
+<p>This algorithm works for every broadcasting problem.</p>
+<h3>Key Takeaways</h3>
+<ul>
+<li>Broadcasting aligns shapes from the right.</li>
+<li>Missing dimensions are treated as size one.</li>
+<li>Dimensions must either match or equal one.</li>
+<li>Output dimension is the maximum along each axis.</li>
+</ul>
+<hr />
+<h2><span id="6-2-singleton-dimensions"></span>6.2 Singleton Dimensions</h2>
+<p>A dimension whose size equals one is called a <strong>singleton dimension</strong>.</p>
+<p>Singleton dimensions are special because they can be broadcast.</p>
+<p>Suppose</p>
+<pre><code class="language-python">A.shape == (2,1)
+</code></pre>
+<pre><code class="language-text">1
+
+2
+</code></pre>
+<p>and</p>
+<pre><code class="language-python">B.shape == (1,3)
+</code></pre>
+<pre><code class="language-text">10 20 30
+</code></pre>
+<p>Adding them</p>
+<pre><code class="language-python">A + B
+</code></pre>
+<p>produces</p>
+<pre><code class="language-text">11 21 31
+
+12 22 32
+</code></pre>
+<p>Shape</p>
+<pre><code class="language-python">(2,3)
+</code></pre>
+<p>Thinking visually,</p>
+<pre><code class="language-text">Column Vector
+
+1
+2
+
+↓
+
+Broadcast Across Columns
+
+↓
+
+1 1 1
+2 2 2
+</code></pre>
+<p>Similarly,</p>
+<pre><code class="language-text">Row Vector
+
+10 20 30
+
+↓
+
+Broadcast Across Rows
+
+↓
+
+10 20 30
+10 20 30
+</code></pre>
+<p>The result becomes</p>
+<pre><code class="language-text">11 21 31
+
+12 22 32
+</code></pre>
+<p>Notice that</p>
+<p>neither tensor was physically copied.</p>
+<p>The framework simply behaves <strong>as if</strong> they had been expanded.</p>
+<h3>Mental Model</h3>
+<p>Singleton dimensions are <strong>stretchable</strong>.</p>
+<p>They behave like elastic bands that can expand to match larger dimensions whenever necessary.</p>
+<h3>Key Takeaways</h3>
+<ul>
+<li>Dimensions of size one can broadcast.</li>
+<li>Broadcasting behaves like stretching.</li>
+<li>No additional memory is allocated for the stretched tensor.</li>
+</ul>
+<hr />
+<h2><span id="6-3-canonical-examples"></span>6.3 Canonical Examples</h2>
+<h3>Example 1</h3>
+<pre><code class="language-text">(4,3)
+
++
+
+(4,3)
+</code></pre>
+<p>Both tensors already have the same shape.</p>
+<p>Output</p>
+<pre><code class="language-text">(4,3)
+</code></pre>
+<hr />
+<h3>Example 2</h3>
+<pre><code class="language-text">(2,3)
+
++
+
+(3,)
+</code></pre>
+<p>Pad</p>
+<pre><code class="language-text">(2,3)
+
++
+
+(1,3)
+</code></pre>
+<p>Compare</p>
+<pre><code class="language-text">2 vs 1
+
+↓
+
+2
+
+3 vs 3
+
+↓
+
+3
+</code></pre>
+<p>Output</p>
+<pre><code class="language-text">(2,3)
+</code></pre>
+<hr />
+<h3>Example 3</h3>
+<pre><code class="language-text">(2,1)
+
++
+
+(1,3)
+</code></pre>
+<p>Compare</p>
+<pre><code class="language-text">2 vs 1
+
+↓
+
+2
+
+1 vs 3
+
+↓
+
+3
+</code></pre>
+<p>Output</p>
+<pre><code class="language-text">(2,3)
+</code></pre>
+<p>This is the row-vector plus column-vector example discussed earlier.</p>
+<hr />
+<h3>Example 4</h3>
+<pre><code class="language-text">(5,4,3)
+
++
+
+(3,)
+</code></pre>
+<p>Pad</p>
+<pre><code class="language-text">(5,4,3)
+
++
+
+(1,1,3)
+</code></pre>
+<p>Output</p>
+<pre><code class="language-text">(5,4,3)
+</code></pre>
+<p>The final dimension matches,</p>
+<p>while the leading singleton dimensions expand automatically.</p>
+<hr />
+<h3>Example 5</h3>
+<p>One of the classic interview questions.</p>
+<pre><code class="language-text">(8,1,6,1)
+
++
+
+(7,1,5)
+</code></pre>
+<p>First,</p>
+<p>pad the smaller tensor.</p>
+<pre><code class="language-text">(8,1,6,1)
+
++
+
+(1,7,1,5)
+</code></pre>
+<p>Compare axis by axis.</p>
+<pre><code class="language-text">8 vs 1
+
+↓
+
+8
+
+1 vs 7
+
+↓
+
+7
+
+6 vs 1
+
+↓
+
+6
+
+1 vs 5
+
+↓
+
+5
+</code></pre>
+<p>Final output shape</p>
+<pre><code class="language-text">(8,7,6,5)
+</code></pre>
+<p>Although this looks intimidating,</p>
+<p>it follows exactly the same algorithm.</p>
+<h3>Key Takeaways</h3>
+<ul>
+<li>Every broadcasting problem follows the same four-step procedure.</li>
+<li>Large examples are simply repeated applications of the same rules.</li>
+<li>Never try to memorize special cases.</li>
+</ul>
+<hr />
+<h2><span id="6-4-invalid-broadcasting-examples"></span>6.4 Invalid Broadcasting Examples</h2>
+<p>Broadcasting fails whenever two dimensions</p>
+<ul>
+<li>are different, and</li>
+<li>neither equals one.</li>
+</ul>
+<h3>Example 1</h3>
+<pre><code class="language-text">(4,3)
+
++
+
+(4,)
+</code></pre>
+<p>Pad</p>
+<pre><code class="language-text">(4,3)
+
++
+
+(1,4)
+</code></pre>
+<p>Compare</p>
+<pre><code class="language-text">3 vs 4
+</code></pre>
+<p>Neither equals one.</p>
+<p>Broadcasting fails.</p>
+<hr />
+<h3>Example 2</h3>
+<pre><code class="language-text">(2,3)
+
++
+
+(2,2)
+</code></pre>
+<p>Compare</p>
+<pre><code class="language-text">3 vs 2
+</code></pre>
+<p>Again,</p>
+<p>neither dimension equals one.</p>
+<p>Result</p>
+<pre><code class="language-text">ValueError
+</code></pre>
+<h3>Key Takeaways</h3>
+<p>Broadcasting fails whenever</p>
+<pre><code class="language-text">Dimension A ≠ Dimension B
+
+AND
+
+Dimension A ≠ 1
+
+AND
+
+Dimension B ≠ 1
+</code></pre>
+<hr />
+<h2><span id="6-5-broadcasting-in-deep-learning"></span>6.5 Broadcasting in Deep Learning</h2>
+<p>Broadcasting appears constantly during neural network training.</p>
+<p>For example,</p>
+<p>suppose</p>
+<pre><code class="language-python">X.shape == (64,512)
+</code></pre>
+<p>and</p>
+<pre><code class="language-python">b.shape == (512,)
+</code></pre>
+<p>Computing</p>
+<pre><code class="language-python">X + b
+</code></pre>
+<p>produces</p>
+<pre><code class="language-python">(64,512)
+</code></pre>
+<p>The bias vector</p>
+<pre><code class="language-python">(512,)
+</code></pre>
+<p>is automatically broadcast across every sample in the batch.</p>
+<p>Another common example is</p>
+<pre><code class="language-python">X.shape == (Batch, Sequence, Hidden)
+</code></pre>
+<p>combined with</p>
+<pre><code class="language-python">scale.shape == (Hidden,)
+</code></pre>
+<p>Again,</p>
+<p>the scale vector is broadcast across every batch element and every token.</p>
+<p>This is one of the reasons broadcasting is indispensable in deep learning.</p>
+<h3>NumPy vs PyTorch</h3>
+<p>Broadcasting semantics are identical in NumPy and PyTorch.</p>
+<p>Once you understand the rules,</p>
+<p>they transfer directly between both libraries.</p>
+<hr />
+<h3>Section Summary</h3>
+<h3>Broadcasting Checklist</h3>
+<p>✔ Align shapes from the right.</p>
+<p>✔ Pad smaller shapes with leading ones.</p>
+<p>✔ Dimensions are compatible if they are equal or one equals one.</p>
+<p>✔ Output dimension is the maximum.</p>
+<p>✔ Singleton dimensions are stretchable.</p>
+<p>✔ Broadcasting never explicitly copies data.</p>
+<p>✔ NumPy and PyTorch follow the same broadcasting rules.</p>
+
+</article>
+
+<a href="#table-of-contents" class="floating-toc">
+    <span class="arrow">↑</span>
+    <span class="label">Contents</span>
+</a>
+
+<footer>
+
+<hr>
+
+<div class="footer">
+
+    <div class="footer-left">
+
+        <a href="https://github.com/iraban-dutta" target="_blank">
+            <img src="/images/github.svg" alt="GitHub">
+        </a>
+
+        <a href="https://www.linkedin.com/in/iraban-dutta/" target="_blank">
+            <img src="/images/linkedin.svg" alt="LinkedIn">
+        </a>
+
+    </div>
+
+    <div class="footer-center">
+
+        <!-- <strong>Iraban Dutta</strong><br>
+        <span>From First Principles</span> -->
+        <p><strong>iraban dutta</strong> - From First Principles</p>
+
+    </div>
+
+    <div class="footer-right">
+
+        <i>
+            "Sometimes ignorance is bliss.<br>
+            Sometimes it isn't."
+        </i>
+
+    </div>
+
+</div>
+
+</footer>
+
+</body>
+
+</html>

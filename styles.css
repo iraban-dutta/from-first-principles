@@ -1,0 +1,524 @@
+/* ============================================================
+   Base
+   ============================================================ */
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: "Times New Roman", Times, serif;
+    background: #ffffff;
+    color: #222;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 50px 40px;
+    font-size: 20px;
+    line-height: 1.75;
+}
+
+main {
+    max-width: 760px;
+}
+
+p {
+    margin-bottom: 22px;
+}
+
+hr {
+    border: none;
+    border-top: 1px solid #ececec;
+    margin: 36px 0;
+}
+
+h1 {
+    font-size: 48px;
+    margin-top: 0;
+    margin-bottom: 0px;
+}
+
+h2 {
+    font-size: 28px;
+    margin-top: 0;
+    margin-bottom: 4px;
+}
+
+
+/* ============================================================
+   Header
+   ============================================================ */
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e5e5e5;
+    padding-bottom: 18px;
+    margin-bottom: 65px;
+}
+
+.logo {
+    font-size: 46px;
+    font-weight: bold;
+    letter-spacing: -2px;
+}
+
+.logo a {
+    text-decoration: none;
+    color: #8428077d;
+}
+
+nav a {
+    color: #222;
+    text-decoration: none;
+    margin-left: 45px;
+    font-size: 20px;
+}
+
+nav a:hover {
+    text-decoration: underline;
+}
+
+
+/* ============================================================
+   Homepage
+   ============================================================ */
+
+.tagline {
+    margin-bottom: 28px;          /* was 60px */
+    color: #060606;
+}
+
+.tagline h1 {
+    margin-bottom: 2px;          /* tighten title → subtitle */
+}
+
+.tagline p {
+    color: #9d9ca2;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.post {
+    margin-top: 0;
+    margin-bottom: 30px;          /* was 42px */
+}
+
+.date {
+    color: #666;
+    font-size: 17px;
+    margin-bottom: 2px;           /* was 6px */
+}
+
+.post h2 {
+    margin-top: 0;                /* was 2px */
+    margin-bottom: 4px;           /* was 2px */
+}
+
+.post p {
+    margin-top: 0;                /* was 8px */
+    margin-bottom: 0;
+}
+
+.post a {
+    color: #2a86c4b5;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.post a:hover {
+    color: #45588C;
+    text-decoration: underline;
+}
+
+/* ============================================================
+   Generic Static Pages
+   (About, Archive, Search)
+   ============================================================ */
+
+.page p {
+    margin: 0 0 24px;
+    line-height: 1.7;
+}
+
+.page p:last-child {
+    margin-bottom: 0;
+}
+
+.page > h1 {
+    margin-bottom: 28px;
+}
+
+.page > h2 {
+    margin-top: 40px;
+    margin-bottom: 14px;
+}
+
+
+/* ============================================================
+   Generic Links
+   ============================================================ */
+
+.links {
+    margin-top: 40px;
+}
+
+.links a {
+    display: inline-block;
+    margin-right: 28px;
+    color: #1a4db3;
+    text-decoration: none;
+}
+
+.links a:hover {
+    text-decoration: underline;
+}
+
+
+/* ============================================================
+   Footer
+   ============================================================ */
+
+footer {
+    margin-top: 70px;
+    color: #777;
+    font-size: 17px;
+}
+
+.footer {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-top: 20px;
+    padding: 10px 0 30px;
+}
+
+.footer-left {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 180px;
+}
+
+.footer-left a {
+    display: flex;
+    align-items: center;
+}
+
+.footer-left img {
+    width: 26px;
+    height: 26px;
+    opacity: 0.75;
+}
+
+.footer-left img:hover {
+    opacity: 1;
+}
+
+.footer-center {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #666;
+    font-size: 17px;
+    white-space: nowrap;
+}
+
+.footer-right {
+    width: 260px;
+    text-align: right;
+    color: #666;
+    font-size: 17px;
+    font-style: italic;
+    line-height: 1.5;
+}
+
+/* ============================================================
+   Blog Post Layout
+   ============================================================ */
+
+.blog-post {
+    max-width: 760px;
+}
+
+
+/* ============================================================
+   Blog Headings
+   ============================================================ */
+
+.blog-post h1 {
+    font-size: 42px;
+    margin: 42px 0 12px;
+    line-height: 1.2;
+}
+
+.blog-post h2 {
+    font-size: 33px;
+    margin: 30px 0 8px;
+    line-height: 1.25;
+}
+
+.blog-post h3 {
+    font-size: 27px;
+    margin: 22px 0 6px;
+    line-height: 1.3;
+}
+
+.blog-post h4 {
+    font-size: 22px;
+    margin: 18px 0 4px;
+    line-height: 1.35;
+}
+
+
+/* ============================================================
+   Paragraphs & Lists
+   ============================================================ */
+
+.blog-post p {
+    margin: 6px 0;
+    line-height: 1.55;
+}
+
+.blog-post ul,
+.blog-post ol {
+    margin: 6px 0 10px 20px;
+    padding-left: 10px;
+}
+
+.blog-post li {
+    margin: 2px 0;
+    line-height: 1.45;
+}
+
+
+/* ============================================================
+   Text Formatting
+   ============================================================ */
+
+.blog-post strong {
+    font-weight: 700;
+}
+
+.blog-post em {
+    font-style: italic;
+}
+
+
+/* ============================================================
+   Inline Code
+   ============================================================ */
+
+.blog-post code {
+    background: #f6f6f6;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-size: 0.93em;
+}
+
+
+/* ============================================================
+   Code Blocks
+   ============================================================ */
+
+.blog-post pre {
+    background: #fafafa;
+    border: 1px solid #e6e6e6;
+    border-radius: 8px;
+    padding: 14px 18px;
+    overflow-x: auto;
+    margin: 10px 0;
+    line-height: 1.45;
+}
+
+.blog-post pre code {
+    background: none;
+    padding: 0;
+    font-size: 17px;
+}
+
+
+/* ============================================================
+   Tables
+   ============================================================ */
+
+.blog-post table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 18px 0;
+    font-size: 18px;
+}
+
+.blog-post th,
+.blog-post td {
+    border: 1px solid #e5e5e5;
+    padding: 10px 14px;
+}
+
+.blog-post th {
+    background: #f8f8f8;
+}
+
+
+/* ============================================================
+   Blockquotes
+   ============================================================ */
+
+.blog-post blockquote {
+    margin: 18px 0;
+    padding-left: 18px;
+    border-left: 4px solid #bcbcbc;
+    color: #555;
+    font-style: italic;
+}
+
+
+/* ============================================================
+   Images
+   ============================================================ */
+
+.blog-post img {
+    display: block;
+    max-width: 100%;
+    margin: 24px auto;
+}
+
+
+/* ============================================================
+   Blog Links
+   ============================================================ */
+
+.blog-post a {
+    color: #2a86c4;
+    text-decoration: none;
+}
+
+.blog-post a:hover {
+    text-decoration: underline;
+}
+
+
+/* ============================================================
+   Blog Metadata
+   ============================================================ */
+
+.post-meta {
+    color: #666;
+    font-size: 17px;
+    margin-bottom: 28px;
+}
+
+.post-meta p {
+    margin: 3px 0;
+}
+
+
+/* ============================================================
+   Blog Horizontal Rules
+   ============================================================ */
+
+.blog-post hr {
+    margin: 24px 0;
+    border: none;
+    border-top: 1px solid #e5e5e5;
+}
+
+/* ============================================================
+   Table of Contents
+   ============================================================ */
+
+.toc {
+    border: 1px solid #e8e8e8;
+    background: #fafafa;
+    border-radius: 8px;
+    padding: 18px 22px;
+    margin: 36px 0;
+}
+
+.toc h2 {
+    font-size: 24px;
+    margin: 0 0 12px;
+}
+
+.toc ul {
+    list-style: disc;
+    margin: 0;
+    padding-left: 22px;
+}
+
+.toc ul ul {
+    list-style: circle;
+    margin-top: 4px;
+    padding-left: 22px;
+}
+
+.toc li {
+    margin: 4px 0;
+    line-height: 1.45;
+}
+
+.toc a {
+    color: #333;
+    text-decoration: none;
+}
+
+.toc a:hover {
+    text-decoration: underline;
+}
+
+
+/* ============================================================
+   Floating Contents Button
+   ============================================================ */
+
+.floating-toc {
+    position: fixed;
+    right: 32px;
+    bottom: 32px;
+
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    padding: 14px 18px;
+
+    border: 1px solid #cfcfcf;
+    border-radius: 999px;
+
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(10px);
+
+    color: #444;
+    text-decoration: none;
+
+    font-size: 17px;
+    font-weight: 600;
+
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.10);
+
+    opacity: 0.85;
+
+    transition: all 0.2s ease;
+
+    z-index: 9999;
+}
+
+.floating-toc:hover {
+    opacity: 1;
+    color: #111;
+    background: #ffffff;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.floating-toc .arrow {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.floating-toc .label {
+    font-size: 16px;
+    font-weight: 600;
+}

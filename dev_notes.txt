@@ -1,0 +1,62 @@
+============================================================
+0. Running Website Locally
+============================================================
+
+# Build the website
+python scripts/build_website.py --target local
+
+# Start a local HTTP server from the project root
+python -m http.server 8000
+
+# Open in your browser
+http://localhost:8000
+
+
+============================================================
+1. Build Entire Website
+============================================================
+
+# Local build (default)
+python scripts/build_website.py --target local
+python scripts/build_website.py (Also works)
+
+# GitHub Pages build
+python scripts/build_website.py --target github
+
+
+============================================================
+2. Build Static Pages
+============================================================
+
+# Local build
+python scripts/build_pages.py --target local
+
+# GitHub Pages build
+python scripts/build_pages.py --target github
+
+
+============================================================
+3. Build All Blog Posts
+============================================================
+
+# Local build
+python scripts/build_post_all.py --target local
+
+# GitHub Pages build
+python scripts/build_post_all.py --target github
+
+============================================================
+4. Build a Single Blog Post
+============================================================
+
+# Local build
+python scripts/build_post.py <post_folder_name> --target local
+
+# GitHub Pages build
+python scripts/build_post.py <post_folder_name> --target github
+
+Example:
+
+python scripts/build_post.py tensor_manipulations --target local
+
+

@@ -12,7 +12,7 @@ description: A library of notes on frequently encountered tensor manipulations
 
 **Last Updated:** 3 July 2026
 
-Tensor manipulations form the foundation of modern machine learning. Every operation in a neural network—from embedding lookups and attention mechanisms to convolutions and loss computation—ultimately boils down to selecting, reshaping, combining or broadcasting tensors.
+Tensor manipulations form the foundation of modern deep learning. Every operation in a neural network—from embedding lookups and attention mechanisms to convolutions and loss computation—ultimately boils down to selecting, reshaping, combining or broadcasting tensors.
 
 This article is a collection of the tensor manipulation patterns that I repeatedly encounter while working with NumPy and PyTorch. The emphasis is on building intuition through examples rather than memorizing APIs.
 

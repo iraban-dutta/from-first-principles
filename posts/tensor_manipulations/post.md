@@ -1804,7 +1804,165 @@ Both tensors have shape
 
 ---
 
-## 5.1 `concatenate()` / `torch.cat()`
+## 5.1 `expand_dims()` / `unsqueeze()`
+
+Sometimes we don't want to join tensors.
+
+We simply want to add a dimension of size one.
+
+NumPy
+
+```python
+np.expand_dims(A, axis)
+```
+
+PyTorch
+
+```python
+A.unsqueeze(dim)
+```
+
+perform exactly this operation.
+
+Suppose
+
+```python
+A.shape
+
+(2,2)
+```
+
+Adding a leading dimension
+
+```python
+np.expand_dims(A, axis=0)  # NumPy
+
+A.unsqueeze(0)             # PyTorch
+```
+
+produces
+
+```python
+(1,2,2)
+```
+
+Interpretation
+
+```text
+1 matrix
+
+↓
+
+2 rows
+
+↓
+
+2 columns
+```
+
+Adding a trailing dimension
+
+```python
+np.expand_dims(A, axis=-1)  # NumPy
+
+A.unsqueeze(-1)             # PyTorch
+```
+
+produces
+
+```python
+(2,2,1)
+```
+
+This is particularly useful before broadcasting,
+
+which we'll study in the next chapter.
+
+### Key Takeaways
+
+- `expand_dims()` and `unsqueeze()` are equivalent.
+- They always insert a dimension of size one.
+- They never modify the underlying data.
+
+---
+
+## 5.2 `squeeze()`
+
+`squeeze()` performs the opposite operation.
+
+It removes dimensions whose size equals one.
+
+Suppose
+
+```python
+A.shape
+
+(1,2,2,1)
+```
+
+Then
+
+```python
+np.squeeze(A)      # NumPy
+
+A.squeeze()        # PyTorch
+```
+
+produces
+
+```python
+(2,2)
+```
+
+Only singleton dimensions disappear.
+
+Dimensions larger than one remain untouched.
+
+### Mental Model
+
+Think of
+
+```python
+expand_dims() / unsqueeze()
+```
+
+and
+
+```python
+squeeze()
+```
+
+as inverse operations.
+
+```text
+(2,2)
+
+↓
+
+unsqueeze(0)
+
+↓
+
+(1,2,2)
+
+↓
+
+squeeze()
+
+↓
+
+(2,2)
+```
+
+### Key Takeaways
+
+- `squeeze()` removes singleton dimensions.
+- It never removes dimensions larger than one.
+- It is the inverse of `expand_dims()` / `unsqueeze()`.
+
+---
+
+## 5.3 `concatenate()` / `torch.cat()`
 
 Concatenation joins tensors along an **existing dimension**.
 
@@ -1813,9 +1971,9 @@ No new dimension is introduced.
 ### Example 1 — Concatenate Rows
 
 ```python
-np.concatenate([A,B], axis=0) # Numpy
+np.concatenate([A,B], axis=0)   # NumPy
 
-torch.cat([A,B], dim=0) # PyTorch
+torch.cat([A,B], dim=0)         # PyTorch
 ```
 
 Result
@@ -1858,9 +2016,9 @@ After
 ### Example 2 — Concatenate Columns
 
 ```python
-np.concatenate([A,B], axis=1) # Numpy
+np.concatenate([A,B], axis=1)   # NumPy
 
-torch.cat([A,B], dim=1) # PyTorch
+torch.cat([A,B], dim=1)         # PyTorch
 ```
 
 Result
@@ -1894,47 +2052,133 @@ Nothing new is created.
 
 ---
 
-## 5.2 `stack()` / `torch.stack()`
+## 5.4 `stack()` / `torch.stack()`
 
 Unlike concatenation,
 
-stacking creates an **entirely new dimension**.
+stacking does **not** directly combine tensors.
 
-Instead of asking
+Instead, it first creates a **new dimension** in every tensor and then concatenates along that new dimension.
 
-> "Where should these values go?"
+A useful way to remember this is
 
-think
+> **Stack = Unsqueeze + Concatenate**
 
-> "I need one more axis."
+Conceptually,
+
+NumPy
+
+```python
+np.stack([A, B], axis=d)
+```
+
+is equivalent to
+
+```python
+np.concatenate(
+    [
+        np.expand_dims(A, axis=d),
+        np.expand_dims(B, axis=d)
+    ],
+    axis=d
+)
+```
+
+Similarly, in PyTorch,
+
+```python
+torch.stack([A, B], dim=d)
+```
+
+is conceptually equivalent to
+
+```python
+torch.cat(
+    [
+        A.unsqueeze(d),
+        B.unsqueeze(d)
+    ],
+    dim=d
+)
+```
+
+This is a mental model rather than the internal implementation, but it explains every stacking operation.
+
+Suppose
+
+```python
+A.shape = (2,2)
+
+B.shape = (2,2)
+```
 
 ---
 
-### Example 1 — Stack Along `axis=0`
+### Example 1 — Stack Along `axis=0` / `dim=0`
 
-```python
-np.stack([A,B], axis=0) # Numpy
-
-torch.stack([A,B], dim=0) # PyTorch
-```
-
-Result
+First, insert a new dimension at position 0.
 
 ```text
-Layer 0
+A
 
-1 2
-3 4
+(2,2)
 
-────────────
+↓
 
-Layer 1
+expand_dims(axis=0)
+or
+unsqueeze(0)
 
-5 6
-7 8
+↓
+
+(1,2,2)
 ```
 
-Shape
+Similarly,
+
+```text
+B
+
+(2,2)
+
+↓
+
+expand_dims(axis=0)
+or
+unsqueeze(0)
+
+↓
+
+(1,2,2)
+```
+
+Now concatenate along that newly created dimension.
+
+NumPy
+
+```python
+np.concatenate(
+    [
+        np.expand_dims(A, axis=0),
+        np.expand_dims(B, axis=0)
+    ],
+    axis=0
+)
+```
+
+PyTorch
+
+```python
+torch.cat(
+    [
+        A.unsqueeze(0),
+        B.unsqueeze(0)
+    ],
+    dim=0
+)
+```
+
+The result has shape
 
 ```python
 (2,2,2)
@@ -1958,29 +2202,81 @@ Each row has
 2 columns
 ```
 
-Notice
-
-the new dimension became the outermost axis.
+Notice that the new dimension became the outermost dimension because we inserted it at position 0 before concatenating.
 
 ---
 
-### Example 2 — Stack Along `axis=1`
+### Example 2 — Stack Along `axis=1` / `dim=1`
 
-```python
-np.stack([A,B], axis=1) # Numpy
+This time, insert the new dimension after the row dimension.
 
-torch.stack([A,B], dim=1) # PyTorch
+```text
+A
+
+(2,2)
+
+↓
+
+expand_dims(axis=1)
+or
+unsqueeze(1)
+
+↓
+
+(2,1,2)
 ```
 
-Shape
+Similarly,
+
+```text
+B
+
+(2,2)
+
+↓
+
+expand_dims(axis=1)
+or
+unsqueeze(1)
+
+↓
+
+(2,1,2)
+```
+
+Now concatenate along dimension 1.
+
+NumPy
+
+```python
+np.concatenate(
+    [
+        np.expand_dims(A, axis=1),
+        np.expand_dims(B, axis=1)
+    ],
+    axis=1
+)
+```
+
+PyTorch
+
+```python
+torch.cat(
+    [
+        A.unsqueeze(1),
+        B.unsqueeze(1)
+    ],
+    dim=1
+)
+```
+
+The resulting shape is
 
 ```python
 (2,2,2)
 ```
 
-Although the shape is identical,
-
-the meaning is completely different.
+Although the final shape is identical to the previous example, the interpretation is different.
 
 Think row-wise.
 
@@ -1989,7 +2285,6 @@ Row 0
 
 [
  [1 2]
-
  [5 6]
 ]
 
@@ -1997,228 +2292,141 @@ Row 1
 
 [
  [3 4]
-
  [7 8]
 ]
 ```
 
-The new dimension was inserted between
-
-rows
-
-and
-
-columns.
+The newly inserted dimension sits between the row and column dimensions.
 
 ---
 
-### Example 3 — Stack Along `axis=-1`
+### Example 3 — Stack Along `axis=-1` / `dim=-1`
 
-```python
-np.stack([A,B], axis=-1) # Numpy
-
-torch.stack([A,B], dim=-1) # PyTorch
-```
-
-Result
+Now insert the new dimension at the end.
 
 ```text
-[[1,5] [2,6]]
+A
 
-[[3,7] [4,8]]
+(2,2)
+
+↓
+
+expand_dims(axis=-1)
+or
+unsqueeze(-1)
+
+↓
+
+(2,2,1)
 ```
 
-Shape
+Likewise,
+
+```text
+B
+
+(2,2)
+
+↓
+
+expand_dims(axis=-1)
+or
+unsqueeze(-1)
+
+↓
+
+(2,2,1)
+```
+
+Now concatenate along the last dimension.
+
+NumPy
+
+```python
+np.concatenate(
+    [
+        np.expand_dims(A, axis=-1),
+        np.expand_dims(B, axis=-1)
+    ],
+    axis=-1
+)
+```
+
+PyTorch
+
+```python
+torch.cat(
+    [
+        A.unsqueeze(-1),
+        B.unsqueeze(-1)
+    ],
+    dim=-1
+)
+```
+
+The result again has shape
 
 ```python
 (2,2,2)
 ```
 
-Now,
-
-every element became a pair.
+This time every scalar has become a pair.
 
 Instead of thinking
 
 ```text
-One scalar
+1
 ```
 
 think
 
 ```text
-One vector
-
-↓
-
 [1,5]
 ```
 
-This is a very common operation when constructing feature vectors.
+Every position in the original matrix now stores one value from A and one value from B.
+
+This is a common operation when constructing feature vectors.
 
 ### Mental Model
 
-`stack()` first creates a new dimension,
+Always think of stacking in two conceptual steps.
 
-then places tensors along that dimension.
+```text
+Original tensors
+
+↓
+
+Insert a new dimension
+(using expand_dims / unsqueeze)
+
+↓
+
+Concatenate
+(along the newly inserted dimension)
+```
+
+Or simply,
+
+```text
+Stack
+
+=
+
+Expand Dims / Unsqueeze
+
++
+
+Concatenate
+```
 
 ### Key Takeaways
 
-- `stack()` always increases tensor rank by one.
-- Same shape does **not** imply same meaning.
+- `np.stack()` and `torch.stack()` are equivalent.
+- `stack()` always increases the tensor rank by one.
 - The chosen axis determines where the new dimension is inserted.
-
----
-
-## 5.3 `expand_dims()` / `unsqueeze()`
-
-Sometimes we don't want to join tensors.
-
-We simply want to add a dimension of size one.
-
-NumPy
-
-```python
-np.expand_dims() # Numpy
-
-torch.unsqueeze() # PyTorch
-```
-
-perform exactly this operation.
-
-Suppose
-
-```python
-A.shape
-
-(2,2)
-```
-
-Adding a leading dimension
-
-```python
-np.expand_dims(A, axis=0) # Numpy
-
-A.unsqueeze(0) # PyTorch
-```
-
-produces
-
-```python
-(1,2,2)
-```
-
-Interpretation
-
-```text
-1 matrix
-
-↓
-
-2 rows
-
-↓
-
-2 columns
-```
-
-Adding a trailing dimension
-
-```python
-np.expand_dims(A, axis=-1) # Numpy
-
-A.unsqueeze(-1) # PyTorch
-```
-
-produces
-
-```python
-(2,2,1)
-```
-
-This is particularly useful before broadcasting,
-
-which we'll study in the next chapter.
-
-### Key Takeaways
-
-- `expand_dims()` and `unsqueeze()` are equivalent.
-- They always insert a dimension of size one.
-- They never modify the underlying data.
-
----
-
-## 5.4 `squeeze()`
-
-`squeeze()` performs the opposite operation.
-
-It removes dimensions whose size equals one.
-
-Suppose
-
-```python
-A.shape
-
-(1,2,2,1)
-```
-
-Then
-
-```python
-A.squeeze()
-```
-
-produces
-
-```python
-(2,2)
-```
-
-Only singleton dimensions disappear.
-
-Dimensions larger than one remain untouched.
-
-### Mental Model
-
-Think of
-
-```python
-unsqueeze()
-```
-
-and
-
-```python
-squeeze()
-```
-
-as inverse operations.
-
-```text
-(2,2)
-
-↓
-
-unsqueeze(0)
-
-↓
-
-(1,2,2)
-
-↓
-
-squeeze()
-
-↓
-
-(2,2)
-```
-
-### Key Takeaways
-
-- `squeeze()` removes singleton dimensions.
-- It never removes dimensions larger than one.
-- It is the inverse of `unsqueeze()`.
+- After inserting the new dimension, stacking behaves exactly like concatenation along that new dimension.
+- The same output shape does **not** imply the same interpretation.
 
 ---
 
@@ -2226,23 +2434,23 @@ squeeze()
 
 | Operation | Existing Dimension Grows? | New Dimension Created? |
 |-----------|---------------------------|------------------------|
+| `expand_dims()` / `unsqueeze()` | ❌ No | ✅ Size = 1 |
+| `squeeze()` | ❌ No | Removes Size-1 Dimension |
 | `concatenate()` / `torch.cat()` | ✅ Yes | ❌ No |
 | `stack()` / `torch.stack()` | ❌ No | ✅ Yes |
 | `reshape()` | ❌ No | ❌ No |
-| `expand_dims()` / `unsqueeze()` | ❌ No | ✅ Size = 1 |
-| `squeeze()` | ❌ No | Removes Size-1 Dimension |
 
 ### Memory Rules
 
-✔ `cat()` extends an existing dimension.
-
-✔ `stack()` inserts a new dimension.
-
-✔ `reshape()` changes only the interpretation.
-
-✔ `unsqueeze()` inserts a singleton dimension.
+✔ `expand_dims()` / `unsqueeze()` inserts a singleton dimension.
 
 ✔ `squeeze()` removes singleton dimensions.
+
+✔ `cat()` extends an existing dimension.
+
+✔ `stack()` = `expand_dims()` / `unsqueeze()` + `concatenate()`.
+
+✔ `reshape()` changes only the interpretation.
 
 
 # 6 Broadcasting

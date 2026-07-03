@@ -151,7 +151,7 @@ def build_post(post_folder: Path, root):
     page = POST_TEMPLATE.replace("{{ROOT}}",root,)
     page = page.replace("{{title}}", metadata["title"])
     page = page.replace("{{header}}", HEADER.replace("{{ROOT}}", root))
-    page = page.replace("{{footer}}", FOOTER)
+    page = page.replace("{{footer}}", FOOTER.replace("{{ROOT}}", root))
     page = page.replace("{{content}}", html)
 
     output = post_folder / "index.html"

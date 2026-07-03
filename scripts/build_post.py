@@ -3,7 +3,7 @@ import argparse
 from utils import ROOT, build_post
 
 ROOT_MAP = {
-    "local": "../../",
+    "local": "../..",
     "github": "/from-first-principles",
 }
 
